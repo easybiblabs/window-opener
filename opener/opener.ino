@@ -7,7 +7,7 @@
 //Digital port of the "close relay"
 #define WINDOW_CLOSE_RELAY 3
 //Maximum time in seconds the open button can be triggered
-#define MAX_OPEN_TIME      15
+#define MAX_OPEN_TIME      47
 //IP address
 byte ip[]  = { 192, 168, 178, 178 };
 byte mac[] = { 0x5A, 0xA2, 0xDA, 0x0D, 0x12, 0x34 }; 
@@ -53,7 +53,7 @@ void loop() {
     if(!found) {
         print_header(client);
         Serial.println("I have no idea what to do.");
-        client.println("Hello. This is the window opener.");
+        print_index_page(client);
       }
     delay(1);
     client.stop();
@@ -80,7 +80,7 @@ void handle_window(EthernetClient &client, TextFinder  &finder)
   if(amount == 0) {
     client.println("{'action':'close'}");
     trigger(WINDOW_CLOSE_RELAY, 0);
-  } else if((amount > 0) && (amount < MAX_OPEN_TIME)) {
+  } else if((amount > 0) && (amount <= MAX_OPEN_TIME)) {
     client.print("{'action':'open','time':");
     client.print(amount);
     client.println("}");
@@ -126,5 +126,16 @@ void print_header(EthernetClient &client)
   client.println("HTTP/1.1 200 OK");
   client.println("Content-Type: text/html");
   client.println();
+}
+
+
+/**
+ * Print minified version of click.html
+ *
+ * @param EthernetClient &client the connection
+ */
+void print_index_page(EthernetClient &client)
+{
+  client.println("<!DOCTYPE html><html lang='en'><head><title>Window!</title><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css'></head><body role='document'><div class='container theme-showcase' role='main'><div class='page-header'><h1>This is window.</h1></div><p><a href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a><a href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a><a href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a><a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a><a href='/?window=0' class='btn btn-lg btn-danger'>Close</a></p></div><script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script><script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script></body></html>");
 }
 
