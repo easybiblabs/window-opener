@@ -1,6 +1,7 @@
 #include <SPI.h>
 #include <Ethernet.h>
 #include <TextFinder.h>
+#include <avr/wdt.h>
 
 //Digital port of the "open relay"
 #define WINDOW_OPEN_RELAY  2
@@ -16,6 +17,7 @@ EthernetServer server(80);
 
 //setup routine
 void setup() {
+  wdt_enable(WDTO_8S);
   Serial.begin(9600);
   Serial.println("Hello.");
   
@@ -35,6 +37,7 @@ void setup() {
 
 //the main loop
 void loop() {
+  wdt_reset();
   EthernetClient client = server.available();
   if(client) {  
     TextFinder  finder(client);
