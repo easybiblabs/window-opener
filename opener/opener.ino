@@ -1,4 +1,7 @@
+#include <avr/wdt.h>
+#if ARDUINO > 18
 #include <SPI.h>
+#endif
 #include <Ethernet.h>
 #include <TextFinder.h>
 
@@ -19,22 +22,33 @@ void setup() {
   Serial.begin(9600);
   Serial.println("Hello.");
   
+  //enable watchdog
+  wdt_enable(WDTO_2S);
+
   //configuring the two relays
   Serial.println("Init Relay");
   pinMode(WINDOW_OPEN_RELAY, OUTPUT);
   pinMode(WINDOW_CLOSE_RELAY, OUTPUT);
   digitalWrite(WINDOW_OPEN_RELAY, HIGH);
   digitalWrite(WINDOW_CLOSE_RELAY, HIGH);
-  
+
   //start up the ethernet server
-  Serial.println("Init IP");
+  Serial.print("Init IP");
+  //dhcp:
+  //Ethernet.begin(mac);
+  //use this for static ip:
   Ethernet.begin(mac, ip);
+  Serial.print(".");
+  
   server.begin();
+  Serial.println(".");
   Serial.println("Init done");
 }
 
 //the main loop
 void loop() {
+  //reset watchdog
+  wdt_reset();
   EthernetClient client = server.available();
   if(client) {  
     TextFinder  finder(client);
@@ -99,19 +113,19 @@ void handle_window(EthernetClient &client, TextFinder  &finder)
  */
 void trigger(int pin, int amount)  
 {
-  if(amount == 0) {
-    //dont wait a full second for close
-    amount = 500;
-  } else {
-    amount = amount * 1000;
-  }
   Serial.print("Triggering pin ");
   Serial.print(pin);
   Serial.print(" for ");
   Serial.print(amount);
-  Serial.println("ms");
+  Serial.println("s");
   digitalWrite(pin, LOW);
-  delay(amount);
+  for (int i=0; i <= amount * 2; i++){
+    //wait for half a second, trigger watchdog. 
+    Serial.print(".");
+    delay(500);
+    wdt_reset();
+  }
+  Serial.println("X");
   digitalWrite(pin, HIGH);
   Serial.println("Triggered.");
 }
