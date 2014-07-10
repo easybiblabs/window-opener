@@ -87,28 +87,31 @@ void update_state(int state, int time)
 void handle_request()
 {
     EthernetClient client = server.available();
-    if (client) {
-        TextFinder  finder(client);
-        boolean found = false;
-
-        if (finder.find("GET"))
-        {
-            DEBUGLN("Got a GET request");
-            while(finder.findUntil("window", "\n\r"))
-            {
-                found = true;
-                DEBUGLN("Found window request");
-                handle_window_request(client, finder);
-            }
-        }
-        if(!found) {
-            print_header(client);
-            DEBUGLN("I have no idea what to do.");
-            print_index_page(client);
-        }
-        client.flush();
-        client.stop();
+    if (!client) {
+        return;
     }
+    TextFinder  finder(client);
+    boolean found = false;
+
+    if (finder.find("GET"))
+    {
+        DEBUGLN("Got a GET request");
+        while(finder.findUntil("/window", "\n\r"))
+        {
+            found = true;
+            DEBUGLN("Found window request");
+            handle_window_request(client, finder);
+            goto end_request;
+        }
+    }
+    if(!found) {
+        print_header(client);
+        DEBUGLN("I have no idea what to do.");
+        print_index_page(client);
+    }
+end_request:
+    client.flush();
+    client.stop();
 }
 
 /**
@@ -161,9 +164,15 @@ void handle_window_request(EthernetClient &client, TextFinder  &finder)
         client.print(amount);
         client.println("}");
         update_state(OPENING, amount);
+    } else if (amount < 0) {
+        // status
+        client.print("{'state': ");
+        client.print(STATE);
+        client.print(", 'remaining_time': ");
+        client.print(OPEN_STOP_TIME - now());
+        client.print("}");
     } else {
         client.println("{'action':'error','message':'Unknown value'}");
-        DEBUGLN("error: unknown value: " + amount);
         update_state(IDLE, 0);
     }
     DEBUGLN("window request done");
