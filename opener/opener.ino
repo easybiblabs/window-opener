@@ -120,6 +120,7 @@ void handle_window()
         }
     } else if (STATE == CLOSING) {
         Serial.println("CLOSING");
+        disable(WINDOW_OPEN_RELAY);
         enable(WINDOW_CLOSE_RELAY);
         delay(100);
         disable(WINDOW_CLOSE_RELAY);
