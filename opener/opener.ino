@@ -69,7 +69,7 @@ void loop() {
         Serial.println("I have no idea what to do.");
         print_index_page(client);
       }
-    delay(1);
+    client.flush();
     client.stop();
   }
 }
@@ -93,11 +93,15 @@ void handle_window(EthernetClient &client, TextFinder  &finder)
   int amount = finder.getValue();
   if(amount == 0) {
     client.println("{'action':'close'}");
+    client.flush();
+    client.stop();
     trigger(WINDOW_CLOSE_RELAY, 0);
   } else if((amount > 0) && (amount <= MAX_OPEN_TIME)) {
     client.print("{'action':'open','time':");
     client.print(amount);
     client.println("}");
+    client.flush();
+    client.stop();
     trigger(WINDOW_OPEN_RELAY, amount);
   } else {
     client.println("{'action':'error','message':'Unknown value'}");
