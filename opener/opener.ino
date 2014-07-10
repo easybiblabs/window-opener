@@ -4,6 +4,7 @@
 #endif
 #include <Ethernet.h>
 #include <TextFinder.h>
+#include <Time.h>
 
 //Digital port of the "open relay"
 #define WINDOW_OPEN_RELAY  2
@@ -15,68 +16,120 @@
 byte ip[]  = { 192, 168, 178, 178 };
 byte mac[] = { 0x5A, 0xA2, 0xDA, 0x0D, 0x12, 0x34 }; 
 
+#define IDLE 0
+#define OPENING 1
+#define CLOSING 2
+int STATE;
+int OPEN_STOP_TIME;
+
 EthernetServer server(80);
 
 //setup routine
 void setup() {
-  Serial.begin(9600);
-  Serial.println("Hello.");
-  
-  //enable watchdog
-  wdt_enable(WDTO_2S);
+    Serial.begin(9600);
+    Serial.println("Hello.");
 
-  //configuring the two relays
-  Serial.println("Init Relay");
-  pinMode(WINDOW_OPEN_RELAY, OUTPUT);
-  pinMode(WINDOW_CLOSE_RELAY, OUTPUT);
-  digitalWrite(WINDOW_OPEN_RELAY, HIGH);
-  digitalWrite(WINDOW_CLOSE_RELAY, HIGH);
+    //enable watchdog
+    wdt_enable(WDTO_2S);
 
-  //start up the ethernet server
-  Serial.print("Init IP");
-  //dhcp:
-  //Ethernet.begin(mac);
-  //use this for static ip:
-  Ethernet.begin(mac, ip);
-  Serial.print(".");
-  
-  server.begin();
-  Serial.println(".");
-  Serial.println("Init done");
+    //configuring the two relays
+    Serial.println("Init Relay");
+    pinMode(WINDOW_OPEN_RELAY, OUTPUT);
+    pinMode(WINDOW_CLOSE_RELAY, OUTPUT);
+    digitalWrite(WINDOW_OPEN_RELAY, HIGH);
+    digitalWrite(WINDOW_CLOSE_RELAY, HIGH);
+
+    //start up the ethernet server
+    Serial.print("Init IP");
+    //dhcp:
+    //Ethernet.begin(mac);
+    //use this for static ip:
+    Ethernet.begin(mac, ip);
+    Serial.print(".");
+
+    server.begin();
+    Serial.println(".");
+    Serial.println("Init done");
 }
 
 //the main loop
 void loop() {
-  //reset watchdog
-  wdt_reset();
-  EthernetClient client = server.available();
-  if(client) {  
-    TextFinder  finder(client);
-    boolean found = false;
-    
-    if(finder.find("GET"))
-    {
-      Serial.println("Got a GET request");
-      while(finder.findUntil("window", "\n\r"))
-      {
-        found = true;
-        Serial.println("Found window request");
-        handle_window(client, finder);
-      }
-    }
-    if(!found) {
-        print_header(client);
-        Serial.println("I have no idea what to do.");
-        print_index_page(client);
-      }
-    client.flush();
-    client.stop();
-  }
+    //reset watchdog
+    wdt_reset();
+    handle_request();
+    Serial.println("handle request done");
+    wdt_reset();
+    handle_window();
+    Serial.println("handle window done");
+}
+
+void update_state(int state, int time)
+{
+    Serial.print("updating state to ");
+    Serial.println(state);
+    Serial.println(time);
+    STATE = state;
+    OPEN_STOP_TIME = now() + time;
+    Serial.println("updating done");
 }
 
 /**
- * the main routine 
- * 
+ * Handle the HTTP request
+ */
+void handle_request()
+{
+    EthernetClient client = server.available();
+    if (client) {
+        TextFinder  finder(client);
+        boolean found = false;
+
+        if (finder.find("GET"))
+        {
+            Serial.println("Got a GET request");
+            while(finder.findUntil("window", "\n\r"))
+            {
+                found = true;
+                Serial.println("Found window request");
+                handle_window_request(client, finder);
+            }
+        }
+        if(!found) {
+            print_header(client);
+            Serial.println("I have no idea what to do.");
+            print_index_page(client);
+        }
+        client.flush();
+        client.stop();
+    }
+}
+
+/**
+ * Apply the current state to the window controls.
+ */
+void handle_window()
+{
+    if (STATE == OPENING) {
+        Serial.println("OPENING");
+        Serial.println(OPEN_STOP_TIME);
+        Serial.println(now());
+        if (OPEN_STOP_TIME > now()) {
+            enable(WINDOW_OPEN_RELAY);
+        } else {
+            disable(WINDOW_OPEN_RELAY);
+            update_state(IDLE, 0);
+        }
+    } else if (STATE == CLOSING) {
+        Serial.println("CLOSING");
+        enable(WINDOW_CLOSE_RELAY);
+        delay(100);
+        disable(WINDOW_CLOSE_RELAY);
+        update_state(IDLE, 0);
+    }
+}
+
+/**
+ * Handle the window request; update the state.
+ *
  * @param EthernetClient &client the connection
  * @param TextFinder &finder the request text finder
  *
@@ -87,53 +140,48 @@ void loop() {
  * if it is >0 and <MAX_OPEN_TIME, it triggers the open button,
  * and errors otherwise
  */
-void handle_window(EthernetClient &client, TextFinder  &finder) 
+void handle_window_request(EthernetClient &client, TextFinder  &finder) 
 {
-  print_header(client);
-  int amount = finder.getValue();
-  if(amount == 0) {
-    client.println("{'action':'close'}");
-    client.flush();
-    client.stop();
-    trigger(WINDOW_CLOSE_RELAY, 0);
-  } else if((amount > 0) && (amount <= MAX_OPEN_TIME)) {
-    client.print("{'action':'open','time':");
-    client.print(amount);
-    client.println("}");
-    client.flush();
-    client.stop();
-    trigger(WINDOW_OPEN_RELAY, amount);
-  } else {
-    client.println("{'action':'error','message':'Unknown value'}");
-    Serial.println("error: unknown value: " + amount);
-  }
+    print_header(client);
+    int amount = finder.getValue();
+    if (amount == 0) {
+        client.println("{'action':'close'}");
+        update_state(CLOSING, 0);
+    } else if ((amount > 0) && (amount <= MAX_OPEN_TIME)) {
+        client.print("{'action':'open','time':");
+        client.print(amount);
+        client.println("}");
+        update_state(OPENING, amount);
+    } else {
+        client.println("{'action':'error','message':'Unknown value'}");
+        Serial.println("error: unknown value: " + amount);
+        update_state(IDLE, 0);
+    }
+    Serial.println("window request done");
 }
 
 /**
- * Triggers the relais.
- *
+ * Enable the relais
  * @param int pin - the digital pin to trigger
- * @param int amount - duration to trigger in seconds. 0 will result in 500ms triggering.
  */
-void trigger(int pin, int amount)  
+void enable(int pin)
 {
-  Serial.print("Triggering pin ");
-  Serial.print(pin);
-  Serial.print(" for ");
-  Serial.print(amount);
-  Serial.println("s");
-  digitalWrite(pin, LOW);
-  for (int i=0; i <= amount * 2; i++){
-    //wait for half a second, trigger watchdog. 
-    Serial.print(".");
-    delay(500);
-    wdt_reset();
-  }
-  Serial.println("X");
-  digitalWrite(pin, HIGH);
-  Serial.println("Triggered.");
+    Serial.print("ENABLING pin ");
+    Serial.print(pin);
+    digitalWrite(pin, LOW);
 }
- 
+
+/**
+ * Disable the relais
+ * @param int pin - the digital pin to trigger
+ */
+void disable(int pin)
+{
+    Serial.print("DISABLING pin ");
+    Serial.print(pin);
+    digitalWrite(pin, HIGH);
+}
+
 /**
  * Prints HTTP header
  * 
@@ -141,9 +189,9 @@ void trigger(int pin, int amount)
  */
 void print_header(EthernetClient &client)
 {
-  client.println("HTTP/1.1 200 OK");
-  client.println("Content-Type: text/html");
-  client.println();
+    client.println("HTTP/1.1 200 OK");
+    client.println("Content-Type: text/html");
+    client.println();
 }
 
 
@@ -154,6 +202,6 @@ void print_header(EthernetClient &client)
  */
 void print_index_page(EthernetClient &client)
 {
-  client.println("<!DOCTYPE html><html lang='en'><head><title>Window!</title><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css'></head><body role='document'><div class='container theme-showcase' role='main'><div class='page-header'><h1>This is window.</h1></div><p><a href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a><a href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a><a href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a><a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a><a href='/?window=0' class='btn btn-lg btn-danger'>Close</a></p></div><script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script><script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script></body></html>");
+    client.println("<!DOCTYPE html><html lang='en'><head><title>Window!</title><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css'></head><body role='document'><div class='container theme-showcase' role='main'><div class='page-header'><h1>This is window.</h1></div><p><a href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a><a href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a><a href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a><a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a><a href='/?window=0' class='btn btn-lg btn-danger'>Close</a></p></div><script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script><script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script></body></html>");
 }
 
