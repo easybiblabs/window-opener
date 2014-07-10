@@ -65,10 +65,8 @@ void loop() {
     //reset watchdog
     wdt_reset();
     handle_request();
-    DEBUGLN("handle request done");
     wdt_reset();
     handle_window();
-    DEBUGLN("handle window done");
 }
 
 void update_state(int state, int time)
@@ -96,7 +94,7 @@ void handle_request()
     if (finder.find("GET"))
     {
         DEBUGLN("Got a GET request");
-        while(finder.findUntil("/window", "\n\r"))
+        while(finder.findUntil("window", "\n\r"))
         {
             found = true;
             DEBUGLN("Found window request");
@@ -169,7 +167,11 @@ void handle_window_request(EthernetClient &client, TextFinder  &finder)
         client.print("{'state': ");
         client.print(STATE);
         client.print(", 'remaining_time': ");
-        client.print(OPEN_STOP_TIME - now());
+        if (STATE == OPENING) {
+            client.print(OPEN_STOP_TIME - now());
+        } else {
+            client.print(0);
+        }
         client.print("}");
     } else {
         client.println("{'action':'error','message':'Unknown value'}");
@@ -220,6 +222,6 @@ void print_header(EthernetClient &client)
  */
 void print_index_page(EthernetClient &client)
 {
-    client.println("<!DOCTYPE html><html lang='en'><head><title>Window!</title><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'><link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css'></head><body role='document'><div class='container theme-showcase' role='main'><div class='page-header'><h1>This is window.</h1></div><p><a href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a><a href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a><a href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a><a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a><a href='/?window=0' class='btn btn-lg btn-danger'>Close</a></p></div><script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script><script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script></body></html>");
+    client.println("<!DOCTYPE html> <html lang='en'> <head> <title>Window!</title> <link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css'> <link rel='stylesheet' href='//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap-theme.min.css'> </head> <body role='document'> <div class='container theme-showcase' role='main'> <div class='page-header'> <h1>This is window.</h1> </div> <p> <a href='/?window=60' class='btn btn-lg btn-primary'>Open 100%</a> <a href='/?window=45' class='btn btn-lg btn-success'>Open 75%</a> <a href='/?window=30' class='btn btn-lg btn-info'>Open 50%</a> <a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a> <a href='/?window=0' class='btn btn-lg btn-danger'>Close</a> </p> </p> <a href='/?window=-1' class='btn btn-lg btn-default'>Status</a> <p> </div> <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script> <script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script> </body> </html>");
 }
 
