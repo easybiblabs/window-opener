@@ -6,6 +6,14 @@
 #include <TextFinder.h>
 #include <Time.h>
 
+#if 1 /* DEBUG */
+#define DEBUG(x) Serial.print(x)
+#define DEBUGLN(x) Serial.println(x)
+#else
+#define DEBUG(x) do {} while (0)
+#define DEBUGLN(x) do {} while (0)
+#endif
+
 //Digital port of the "open relay"
 #define WINDOW_OPEN_RELAY  2
 //Digital port of the "close relay"
@@ -27,29 +35,29 @@ EthernetServer server(80);
 //setup routine
 void setup() {
     Serial.begin(9600);
-    Serial.println("Hello.");
+    DEBUGLN("Hello.");
 
     //enable watchdog
     wdt_enable(WDTO_2S);
 
     //configuring the two relays
-    Serial.println("Init Relay");
+    DEBUGLN("Init Relay");
     pinMode(WINDOW_OPEN_RELAY, OUTPUT);
     pinMode(WINDOW_CLOSE_RELAY, OUTPUT);
     digitalWrite(WINDOW_OPEN_RELAY, HIGH);
     digitalWrite(WINDOW_CLOSE_RELAY, HIGH);
 
     //start up the ethernet server
-    Serial.print("Init IP");
+    DEBUG("Init IP");
     //dhcp:
     //Ethernet.begin(mac);
     //use this for static ip:
     Ethernet.begin(mac, ip);
-    Serial.print(".");
+    DEBUG(".");
 
     server.begin();
-    Serial.println(".");
-    Serial.println("Init done");
+    DEBUGLN(".");
+    DEBUGLN("Init done");
 }
 
 //the main loop
@@ -57,20 +65,20 @@ void loop() {
     //reset watchdog
     wdt_reset();
     handle_request();
-    Serial.println("handle request done");
+    DEBUGLN("handle request done");
     wdt_reset();
     handle_window();
-    Serial.println("handle window done");
+    DEBUGLN("handle window done");
 }
 
 void update_state(int state, int time)
 {
-    Serial.print("updating state to ");
-    Serial.println(state);
-    Serial.println(time);
+    DEBUG("updating state to ");
+    DEBUGLN(state);
+    DEBUGLN(time);
     STATE = state;
     OPEN_STOP_TIME = now() + time;
-    Serial.println("updating done");
+    DEBUGLN("updating done");
 }
 
 /**
@@ -85,17 +93,17 @@ void handle_request()
 
         if (finder.find("GET"))
         {
-            Serial.println("Got a GET request");
+            DEBUGLN("Got a GET request");
             while(finder.findUntil("window", "\n\r"))
             {
                 found = true;
-                Serial.println("Found window request");
+                DEBUGLN("Found window request");
                 handle_window_request(client, finder);
             }
         }
         if(!found) {
             print_header(client);
-            Serial.println("I have no idea what to do.");
+            DEBUGLN("I have no idea what to do.");
             print_index_page(client);
         }
         client.flush();
@@ -109,9 +117,9 @@ void handle_request()
 void handle_window()
 {
     if (STATE == OPENING) {
-        Serial.println("OPENING");
-        Serial.println(OPEN_STOP_TIME);
-        Serial.println(now());
+        DEBUGLN("OPENING");
+        DEBUGLN(OPEN_STOP_TIME);
+        DEBUGLN(now());
         if (OPEN_STOP_TIME > now()) {
             enable(WINDOW_OPEN_RELAY);
         } else {
@@ -119,7 +127,7 @@ void handle_window()
             update_state(IDLE, 0);
         }
     } else if (STATE == CLOSING) {
-        Serial.println("CLOSING");
+        DEBUGLN("CLOSING");
         disable(WINDOW_OPEN_RELAY);
         enable(WINDOW_CLOSE_RELAY);
         delay(100);
@@ -155,10 +163,10 @@ void handle_window_request(EthernetClient &client, TextFinder  &finder)
         update_state(OPENING, amount);
     } else {
         client.println("{'action':'error','message':'Unknown value'}");
-        Serial.println("error: unknown value: " + amount);
+        DEBUGLN("error: unknown value: " + amount);
         update_state(IDLE, 0);
     }
-    Serial.println("window request done");
+    DEBUGLN("window request done");
 }
 
 /**
@@ -167,8 +175,8 @@ void handle_window_request(EthernetClient &client, TextFinder  &finder)
  */
 void enable(int pin)
 {
-    Serial.print("ENABLING pin ");
-    Serial.print(pin);
+    DEBUG("ENABLING pin ");
+    DEBUGLN(pin);
     digitalWrite(pin, LOW);
 }
 
@@ -178,8 +186,8 @@ void enable(int pin)
  */
 void disable(int pin)
 {
-    Serial.print("DISABLING pin ");
-    Serial.print(pin);
+    DEBUG("DISABLING pin ");
+    DEBUGLN(pin);
     digitalWrite(pin, HIGH);
 }
 
