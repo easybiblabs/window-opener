@@ -29,6 +29,7 @@ byte mac[] = { 0x5A, 0xA2, 0xDA, 0x0D, 0x12, 0x34 };
 #define CLOSING 2
 int STATE;
 int OPEN_STOP_TIME;
+int OPEN_TIME_ACCU;
 
 EthernetServer server(80);
 
@@ -74,6 +75,11 @@ void update_state(int state, int time)
     DEBUGLN(time);
     STATE = state;
     OPEN_STOP_TIME = now() + time;
+    if (STATE == CLOSING) {
+        OPEN_TIME_ACCU = 0;
+    } else {
+        OPEN_TIME_ACCU += time;
+    }
     DEBUGLN("updating done");
 }
 
@@ -167,6 +173,8 @@ void handle_window_request(EthernetClient &client, TextFinder  &finder)
         } else {
             client.print(0);
         }
+        client.print(", 'openness': ");
+        client.print(OPEN_TIME_ACCU);
         client.print("}");
     } else {
         client.println("{'action':'error','message':'Unknown value'}");
