@@ -11,17 +11,49 @@
         <h1>This is window.</h1>
       </div>
       <p>
-          <a href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a>
-          <a href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a>
-          <a href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a>
-          <a href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a>
-          <a href='/?window=0' class='btn btn-lg btn-danger'>Close</a>
+          <a href='#' data-href='/?window=47' class='btn btn-lg btn-primary'>Open 100%</a>
+          <a href='#' data-href='/?window=35' class='btn btn-lg btn-success'>Open 75%</a>
+          <a href='#' data-href='/?window=23' class='btn btn-lg btn-info'>Open 50%</a>
+          <a href='#' data-href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a>
+          <a href='#' data-href='/?window=0' class='btn btn-lg btn-danger'>Close</a>
       </p>
-      </p>
-          <a href='/?window=-1' class='btn btn-lg btn-default'>Status</a>
-      <p>
+      <div class="progress" style="display:none">
+        <div id="progress" class="progress-bar progress-bar-success" role="progressbar" style="width: 0%;">
+          closed
+        </div>
+      </div>
+      <h3 id="status"></h3>
     </div>
     <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script>
     <script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script>
+    <script>
+      $('.btn').on('click touchstart', function(e) {
+        $.get($(e.target).attr('data-href'));
+      });
+      var update = function() {
+        $.getJSON('/?window=-1').done(function(data) {
+          var percentage = Math.round(100*(data.openess / 47));
+          $('#progress').attr('style', 'width: ' + percentage + '%');
+          var text = "closed";
+          if (percentage > 0) {
+            text = 'open';
+          }
+          switch (data.status) {
+            case 1: text = 'opening'; break;
+            case 2: text = 'closing'; break;
+          }
+          if (text != 'closed') {
+            $('#progress').parent().show();
+            $('#progress').text(text);
+            $('#status').hide();
+          } else {
+            $('#progress').parent().hide();
+            $('#status').text(text).show();
+          }
+        });
+      };
+      update();
+      setInterval(update, 2000);
+    </script>
   </body>
 </html>
