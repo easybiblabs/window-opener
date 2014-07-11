@@ -60,9 +60,7 @@ void setup() {
     DEBUGLN("Init done");
 }
 
-//the main loop
 void loop() {
-    //reset watchdog
     wdt_reset();
     handle_request();
     wdt_reset();
@@ -85,28 +83,25 @@ void update_state(int state, int time)
 void handle_request()
 {
     EthernetClient client = server.available();
+
     if (!client) {
         return;
     }
-    TextFinder  finder(client);
-    boolean found = false;
 
-    if (finder.find("GET"))
-    {
+    TextFinder finder(client);
+
+    if (finder.find("GET")) {
         DEBUGLN("Got a GET request");
-        while(finder.findUntil("window", "\n\r"))
-        {
-            found = true;
+        while (finder.findUntil("window", "\n\r")) {
             DEBUGLN("Found window request");
             handle_window_request(client, finder);
             goto end_request;
         }
     }
-    if(!found) {
-        print_header(client);
-        DEBUGLN("I have no idea what to do.");
-        print_index_page(client);
-    }
+    DEBUGLN("I have no idea what to do.");
+    print_header(client);
+    print_index_page(client);
+
 end_request:
     client.flush();
     client.stop();
@@ -204,7 +199,6 @@ void disable(int pin)
 
 /**
  * Prints HTTP header
- * 
  * @param EthernetClient &client the connection
  */
 void print_header(EthernetClient &client)
@@ -217,7 +211,6 @@ void print_header(EthernetClient &client)
 
 /**
  * Print minified version of click.html
- *
  * @param EthernetClient &client the connection
  */
 void print_index_page(EthernetClient &client)
