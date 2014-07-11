@@ -17,12 +17,12 @@
           <a href='#' data-href='/?window=5' class='btn btn-lg btn-warning'>Open 10%</a>
           <a href='#' data-href='/?window=0' class='btn btn-lg btn-danger'>Close</a>
       </p>
-      <div class="progress" style="display:none">
-        <div id="progress" class="progress-bar progress-bar-success" role="progressbar" style="width: 0%;">
+      <div class='progress' style='display:none'>
+        <div id='progress' class='progress-bar progress-bar-success' role='progressbar' style='width: 0%;'>
           closed
         </div>
       </div>
-      <h3 id="status"></h3>
+      <h3 id='status'></h3>
     </div>
     <script src='https://ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js'></script>
     <script src='//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js'></script>
@@ -34,7 +34,7 @@
         $.getJSON('/?window=-1').done(function(data) {
           var percentage = Math.round(100*(data.openness / 47));
           $('#progress').attr('style', 'width: ' + percentage + '%');
-          var text = "closed";
+          var text = 'closed';
           if (percentage > 0) {
             text = 'open';
           }
