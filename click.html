@@ -31,7 +31,8 @@
         $.get($(e.target).attr('data-href'));
       });
       var update = function() {
-        $.getJSON('/?window=-1').done(function(data) {
+        $.getJSON('/?window=-1', function(data) {
+          console.log(data);
           var percentage = Math.round(100*(data.openness / 47));
           $('#progress').attr('style', 'width: ' + percentage + '%');
           var text = 'closed';
